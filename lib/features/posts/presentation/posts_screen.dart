@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/presentation/app_bar_actions.dart';
+import '../../auth/application/auth_provider.dart';
+import '../../navigation/presentation/app_navigation_drawer.dart';
 import '../application/posts_provider.dart';
 import '../data/post.dart';
 import 'post_details_screen.dart';
@@ -15,6 +18,17 @@ class PostsScreen extends ConsumerStatefulWidget {
 }
 
 class _PostsScreenState extends ConsumerState<PostsScreen> {
+  final _searchController = TextEditingController();
+  PostSearchField _searchField = PostSearchField.title;
+  int _pageSize = 10;
+  int _currentPage = 0;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _openPostForm({Post? post}) async {
     final saved = await showGeneralDialog<bool>(
       context: context,
@@ -133,8 +147,10 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
   @override
   Widget build(BuildContext context) {
     final postsAsync = ref.watch(postsProvider);
+    final isAuthenticated = ref.watch(authProvider).isAuthenticated;
 
     return Scaffold(
+      drawer: const AppNavigationDrawer(postsSelected: true),
       appBar: AppBar(
         titleSpacing: 12,
         title: const Text(
@@ -143,6 +159,7 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
+          const AppBarActions(),
           IconButton(
             tooltip: 'Refresh posts',
             onPressed: () => ref.invalidate(postsProvider),
@@ -186,46 +203,81 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
             ],
           ),
           data: (posts) {
-            if (posts.isEmpty) {
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: const [
-                  SizedBox(
-                    height: 300,
-                    child: Center(child: Text('No posts found.')),
-                  ),
-                ],
-              );
-            }
+            final query = _searchController.text.trim().toLowerCase();
+            final filteredPosts = posts.where((post) {
+              if (query.isEmpty) {
+                return true;
+              }
+              final searchableText = switch (_searchField) {
+                PostSearchField.title => post.title,
+                PostSearchField.body => post.body,
+              };
+              return searchableText.toLowerCase().contains(query);
+            }).toList();
+            final pageCount = _pageSize == -1 || filteredPosts.isEmpty
+                ? 1
+                : (filteredPosts.length / _pageSize).ceil();
+            final safePage = _currentPage.clamp(0, pageCount - 1).toInt();
+            final startIndex = safePage * _pageSize;
+            final endIndex = _pageSize == -1
+                ? filteredPosts.length
+                : (startIndex + _pageSize)
+                      .clamp(0, filteredPosts.length)
+                      .toInt();
+            final visiblePosts = _pageSize == -1
+                ? filteredPosts
+                : filteredPosts.sublist(startIndex, endIndex);
 
-            return ListView.builder(
+            return ListView(
+              key: const ValueKey('posts-list'),
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.symmetric(vertical: 12),
-              itemCount: posts.length,
-              itemBuilder: (context, index) {
-                final post = posts[index];
-                return Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 900),
-                    child: PostCard(
-                      post: post,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (context) =>
-                              PostDetailsScreen(postId: post.id),
+              children: [
+                _searchControls(),
+                if (!isAuthenticated) _guestNotice(context),
+                if (visiblePosts.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 56),
+                    child: Center(
+                      child: Text(
+                        query.isEmpty
+                            ? 'No posts found.'
+                            : 'No posts match your search.',
+                      ),
+                    ),
+                  )
+                else
+                  for (final post in visiblePosts)
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 900),
+                        child: PostCard(
+                          post: post,
+                          canManage: isAuthenticated,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (context) =>
+                                  PostDetailsScreen(postId: post.id),
+                            ),
+                          ),
+                          onEdit: () => _openPostForm(post: post),
+                          onDelete: () => _deletePost(post),
                         ),
                       ),
-                      onEdit: () => _openPostForm(post: post),
-                      onDelete: () => _deletePost(post),
                     ),
-                  ),
-                );
-              },
+                _paginationControls(
+                  resultCount: filteredPosts.length,
+                  startIndex: startIndex,
+                  endIndex: endIndex,
+                  pageCount: pageCount,
+                  currentPage: safePage,
+                ),
+              ],
             );
           },
         ),
       ),
-      floatingActionButton: postsAsync.hasValue
+      floatingActionButton: postsAsync.hasValue && isAuthenticated
           ? FloatingActionButton.extended(
               onPressed: _openPostForm,
               icon: const Icon(Icons.add),
@@ -234,4 +286,192 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
           : null,
     );
   }
+
+  Widget _searchControls() {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: Card(
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                TextField(
+                  key: const ValueKey('post-search'),
+                  controller: _searchController,
+                  onChanged: (_) => setState(() => _currentPage = 0),
+                  decoration: InputDecoration(
+                    labelText: 'Search posts',
+                    hintText: 'Enter a title or body phrase',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Clear search',
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _currentPage = 0);
+                            },
+                            icon: const Icon(Icons.clear),
+                          ),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 16,
+                  runSpacing: 8,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Search in'),
+                        const SizedBox(width: 8),
+                        DropdownButton<PostSearchField>(
+                          key: const ValueKey('post-search-field'),
+                          value: _searchField,
+                          items: const [
+                            DropdownMenuItem(
+                              value: PostSearchField.title,
+                              child: Text('Title'),
+                            ),
+                            DropdownMenuItem(
+                              value: PostSearchField.body,
+                              child: Text('Body'),
+                            ),
+                          ],
+                          onChanged: (field) {
+                            if (field != null) {
+                              setState(() {
+                                _searchField = field;
+                                _currentPage = 0;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Per page'),
+                        const SizedBox(width: 8),
+                        DropdownButton<int>(
+                          key: const ValueKey('posts-page-size'),
+                          value: _pageSize,
+                          items: const [
+                            DropdownMenuItem(value: 5, child: Text('5')),
+                            DropdownMenuItem(value: 10, child: Text('10')),
+                            DropdownMenuItem(value: 20, child: Text('20')),
+                            DropdownMenuItem(value: -1, child: Text('All')),
+                          ],
+                          onChanged: (size) {
+                            if (size != null) {
+                              setState(() {
+                                _pageSize = size;
+                                _currentPage = 0;
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _paginationControls({
+    required int resultCount,
+    required int startIndex,
+    required int endIndex,
+    required int pageCount,
+    required int currentPage,
+  }) {
+    final firstShown = resultCount == 0 ? 0 : startIndex + 1;
+    final lastShown = endIndex;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              Text(
+                resultCount == 0
+                    ? 'Showing 0 of 0 posts'
+                    : 'Showing $firstShown–$lastShown of $resultCount posts',
+                key: const ValueKey('posts-pagination-summary'),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    key: const ValueKey('posts-previous-page'),
+                    tooltip: 'Previous page',
+                    onPressed: currentPage == 0
+                        ? null
+                        : () => setState(() => _currentPage = currentPage - 1),
+                    icon: const Icon(Icons.chevron_left),
+                  ),
+                  Text(
+                    _pageSize == -1
+                        ? 'All posts'
+                        : 'Page ${currentPage + 1} of $pageCount',
+                  ),
+                  IconButton(
+                    key: const ValueKey('posts-next-page'),
+                    tooltip: 'Next page',
+                    onPressed: currentPage + 1 >= pageCount
+                        ? null
+                        : () => setState(() => _currentPage = currentPage + 1),
+                    icon: const Icon(Icons.chevron_right),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _guestNotice(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900),
+        child: Card(
+          margin: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: const Padding(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'You can view post details. Log in to create, edit, or delete posts.',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
+
+enum PostSearchField { title, body }

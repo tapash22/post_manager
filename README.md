@@ -8,6 +8,30 @@ API. JSONPlaceholder simulates create, update, and delete requests but does not
 persist changes. The app reflects successful mutations in the current list;
 refreshing or restarting reloads the original demo data.
 
+## Search and pagination
+
+On the Posts screen, use the search field and Title/Body selector to filter
+posts case-insensitively. Results are paginated by 10 by default; use the page
+size selector to show 5, 10, 20, or all matching posts and the previous/next
+controls to move between pages. Search and page-size changes return to the
+first page.
+
+## Demo accounts
+
+Register and log in locally to enable post creation, editing, and deletion.
+Account records and the signed-in session are stored on the device using
+SharedPreferences. Passwords are stored as salted hashes. A sample account is
+seeded on first launch:
+
+```text
+Email: demo@example.com
+Password: password123
+```
+
+This is demo-only authentication, not production security. The API does not
+enforce these user permissions, and the local app cannot provide server-side
+authorization.
+
 ## Configure the API
 
 Copy `.env.example` to `.env` in the project root, then set `API_BASE_URL` to

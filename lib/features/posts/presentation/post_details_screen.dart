@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/presentation/app_bar_actions.dart';
 import '../application/posts_provider.dart';
 
 class PostDetailsScreen extends ConsumerWidget {
   final int postId;
 
-  const PostDetailsScreen({
-    super.key,
-    required this.postId,
-  });
+  const PostDetailsScreen({super.key, required this.postId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final postAsync = ref.watch(postDetailsProvider(postId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Post details')),
+      appBar: AppBar(
+        title: const Text('Post details'),
+        actions: const [AppBarActions()],
+      ),
       body: postAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => Center(
@@ -46,9 +47,8 @@ class PostDetailsScreen extends ConsumerWidget {
               children: [
                 Text(
                   post.title,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
+                  style: Theme.of(context).textTheme.headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 Wrap(
@@ -62,9 +62,8 @@ class PostDetailsScreen extends ConsumerWidget {
                 const SizedBox(height: 24),
                 Text(
                   post.body,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        height: 1.6,
-                      ),
+                  style: Theme.of(context).textTheme.bodyLarge
+                      ?.copyWith(height: 1.6),
                 ),
               ],
             ),

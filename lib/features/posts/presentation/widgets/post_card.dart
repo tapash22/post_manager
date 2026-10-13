@@ -5,6 +5,7 @@ import '../../data/post.dart';
 class PostCard extends StatelessWidget {
   final Post post;
   final VoidCallback onTap;
+  final bool canManage;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -12,6 +13,7 @@ class PostCard extends StatelessWidget {
     super.key,
     required this.post,
     required this.onTap,
+    required this.canManage,
     required this.onEdit,
     required this.onDelete,
   });
@@ -44,27 +46,28 @@ class PostCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.labelLarge,
                     ),
                   ),
-                  PopupMenuButton<_PostAction>(
-                    tooltip: 'Post actions',
-                    onSelected: (action) {
-                      switch (action) {
-                        case _PostAction.edit:
-                          onEdit();
-                        case _PostAction.delete:
-                          onDelete();
-                      }
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: _PostAction.edit,
-                        child: Text('Edit'),
-                      ),
-                      PopupMenuItem(
-                        value: _PostAction.delete,
-                        child: Text('Delete'),
-                      ),
-                    ],
-                  ),
+                  if (canManage)
+                    PopupMenuButton<_PostAction>(
+                      tooltip: 'Post actions',
+                      onSelected: (action) {
+                        switch (action) {
+                          case _PostAction.edit:
+                            onEdit();
+                          case _PostAction.delete:
+                            onDelete();
+                        }
+                      },
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(
+                          value: _PostAction.edit,
+                          child: Text('Edit'),
+                        ),
+                        PopupMenuItem(
+                          value: _PostAction.delete,
+                          child: Text('Delete'),
+                        ),
+                      ],
+                    ),
                 ],
               ),
               const SizedBox(height: 12),

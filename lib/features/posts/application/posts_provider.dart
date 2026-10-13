@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/dio_client.dart';
+import '../../auth/application/auth_provider.dart';
 import '../data/post.dart';
 import '../data/post_api.dart';
 import '../data/post_repository.dart';
@@ -32,6 +33,7 @@ class PostsController extends AsyncNotifier<List<Post>> {
     required String title,
     required String body,
   }) async {
+    _requireAuthentication();
     _loadedPosts();
     final created = await ref
         .read(postRepositoryProvider)
@@ -40,6 +42,7 @@ class PostsController extends AsyncNotifier<List<Post>> {
   }
 
   Future<void> updatePost(Post post) async {
+    _requireAuthentication();
     _loadedPosts();
     final updated = await ref.read(postRepositoryProvider).updatePost(post);
     state = AsyncData([
@@ -49,6 +52,7 @@ class PostsController extends AsyncNotifier<List<Post>> {
   }
 
   Future<void> deletePost(int id) async {
+    _requireAuthentication();
     _loadedPosts();
     await ref.read(postRepositoryProvider).deletePost(id);
     state = AsyncData(
@@ -62,5 +66,11 @@ class PostsController extends AsyncNotifier<List<Post>> {
       throw StateError('Posts are not loaded.');
     }
     return posts;
+  }
+
+  void _requireAuthentication() {
+    if (!ref.read(authProvider).isAuthenticated) {
+      throw StateError('Log in to create, edit, or delete posts.');
+    }
   }
 }
