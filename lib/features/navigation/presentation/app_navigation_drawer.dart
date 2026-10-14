@@ -27,7 +27,13 @@ class AppNavigationDrawer extends StatelessWidget {
       children: const [
         Padding(
           padding: EdgeInsets.fromLTRB(28, 16, 16, 10),
-          child: Text('Post Manager'),
+          child: Row(
+            children: [
+              Icon(Icons.dashboard_rounded),
+              SizedBox(width: 12),
+              Text('Post Manager'),
+            ],
+          ),
         ),
         NavigationDrawerDestination(
           icon: Icon(Icons.home_outlined),

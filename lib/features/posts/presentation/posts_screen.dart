@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/presentation/app_header_bar.dart';
 import '../../../core/presentation/app_bar_actions.dart';
 import '../../auth/application/auth_provider.dart';
 import '../../navigation/presentation/app_navigation_drawer.dart';
@@ -151,13 +152,9 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
 
     return Scaffold(
       drawer: const AppNavigationDrawer(postsSelected: true),
-      appBar: AppBar(
-        titleSpacing: 12,
-        title: const Text(
-          'Post Manager',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
+      appBar: AppHeaderBar(
+        title: 'Post Manager',
+        icon: Icons.article_outlined,
         actions: [
           const AppBarActions(),
           IconButton(

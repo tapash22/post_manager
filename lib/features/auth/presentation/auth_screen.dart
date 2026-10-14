@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/presentation/app_header_bar.dart';
+
 import '../../navigation/presentation/home_screen.dart';
 import '../application/auth_provider.dart';
 import 'auth_form.dart';
@@ -38,7 +40,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Log in or register')),
+      appBar: const AppHeaderBar(
+        title: 'Log in or register',
+        icon: Icons.login,
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),

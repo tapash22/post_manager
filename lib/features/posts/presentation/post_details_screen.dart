@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/presentation/app_header_bar.dart';
 import '../../../core/presentation/app_bar_actions.dart';
 import '../application/posts_provider.dart';
 
@@ -14,8 +15,9 @@ class PostDetailsScreen extends ConsumerWidget {
     final postAsync = ref.watch(postDetailsProvider(postId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Post details'),
+      appBar: AppHeaderBar(
+        title: 'Post details',
+        icon: Icons.article_outlined,
         actions: const [AppBarActions()],
       ),
       body: postAsync.when(

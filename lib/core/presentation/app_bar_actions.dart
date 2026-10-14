@@ -73,15 +73,33 @@ class AppBarActions extends ConsumerWidget {
               const PopupMenuDivider(),
               const PopupMenuItem<String>(
                 value: 'profile',
-                child: Text('Profile'),
+                child: Row(
+                  children: [
+                    Icon(Icons.person_outline),
+                    SizedBox(width: 12),
+                    Text('Profile'),
+                  ],
+                ),
               ),
               const PopupMenuItem<String>(
                 value: 'settings',
-                child: Text('Settings'),
+                child: Row(
+                  children: [
+                    Icon(Icons.settings_outlined),
+                    SizedBox(width: 12),
+                    Text('Settings'),
+                  ],
+                ),
               ),
               const PopupMenuItem<String>(
                 value: 'logout',
-                child: Text('Log out'),
+                child: Row(
+                  children: [
+                    Icon(Icons.logout),
+                    SizedBox(width: 12),
+                    Text('Log out'),
+                  ],
+                ),
               ),
             ],
           )

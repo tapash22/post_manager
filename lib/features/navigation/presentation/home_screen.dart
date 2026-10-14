@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/presentation/app_header_bar.dart';
 import '../../../core/presentation/app_bar_actions.dart';
 import '../../posts/presentation/posts_screen.dart';
 import 'app_navigation_drawer.dart';
@@ -12,8 +13,9 @@ class HomeScreen extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Home'),
+      appBar: AppHeaderBar(
+        title: 'Home',
+        icon: Icons.home_outlined,
         actions: const [AppBarActions()],
       ),
       drawer: const AppNavigationDrawer(postsSelected: false),

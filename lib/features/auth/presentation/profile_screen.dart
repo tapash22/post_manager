@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/presentation/app_header_bar.dart';
 import '../application/auth_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -12,7 +13,7 @@ class ProfileScreen extends ConsumerWidget {
     final name = auth.name ?? 'User';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: const AppHeaderBar(title: 'Profile', icon: Icons.person_outline),
       body: Center(
         child: Card(
           margin: const EdgeInsets.all(24),

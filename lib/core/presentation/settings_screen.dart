@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'app_header_bar.dart';
 import '../application/theme_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -11,7 +12,10 @@ class SettingsScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: const AppHeaderBar(
+        title: 'Settings',
+        icon: Icons.settings_outlined,
+      ),
       body: ListView(
         children: [
           SwitchListTile(
