@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/presentation/app_header_bar.dart';
 import '../../../core/presentation/app_bar_actions.dart';
+import '../../../core/presentation/app_header_bar.dart';
 import '../../auth/application/auth_provider.dart';
 import '../../navigation/presentation/app_navigation_drawer.dart';
 import '../application/posts_provider.dart';
@@ -292,42 +292,52 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
           margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                TextField(
-                  key: const ValueKey('post-search'),
-                  controller: _searchController,
-                  onChanged: (_) => setState(() => _currentPage = 0),
-                  decoration: InputDecoration(
-                    labelText: 'Search posts',
-                    hintText: 'Enter a title or body phrase',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _searchController.text.isEmpty
-                        ? null
-                        : IconButton(
-                            tooltip: 'Clear search',
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _currentPage = 0);
-                            },
-                            icon: const Icon(Icons.clear),
-                          ),
-                    border: const OutlineInputBorder(),
-                  ),
+            child: Container(
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline,
                 ),
-                const SizedBox(height: 12),
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 16,
-                  runSpacing: 8,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('Search in'),
-                        const SizedBox(width: 8),
-                        DropdownButton<PostSearchField>(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('post-search'),
+                      controller: _searchController,
+                      onChanged: (_) => setState(() => _currentPage = 0),
+                      decoration: InputDecoration(
+                        hintText: 'Search posts',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _searchController.text.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: 'Clear search',
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() => _currentPage = 0);
+                                },
+                                icon: const Icon(Icons.clear),
+                              ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                        ),
+                      ),
+                    ),
+                  ),
+                  VerticalDivider(
+                    width: 1,
+                    thickness: 1,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Tooltip(
+                      message: 'Search in title or body',
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<PostSearchField>(
                           key: const ValueKey('post-search-field'),
                           value: _searchField,
                           items: const [
@@ -349,36 +359,11 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
                             }
                           },
                         ),
-                      ],
+                      ),
                     ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('Per page'),
-                        const SizedBox(width: 8),
-                        DropdownButton<int>(
-                          key: const ValueKey('posts-page-size'),
-                          value: _pageSize,
-                          items: const [
-                            DropdownMenuItem(value: 5, child: Text('5')),
-                            DropdownMenuItem(value: 10, child: Text('10')),
-                            DropdownMenuItem(value: 20, child: Text('20')),
-                            DropdownMenuItem(value: -1, child: Text('All')),
-                          ],
-                          onChanged: (size) {
-                            if (size != null) {
-                              setState(() {
-                                _pageSize = size;
-                                _currentPage = 0;
-                              });
-                            }
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -411,6 +396,31 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
                     ? 'Showing 0 of 0 posts'
                     : 'Showing $firstShown–$lastShown of $resultCount posts',
                 key: const ValueKey('posts-pagination-summary'),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Per page'),
+                  const SizedBox(width: 8),
+                  DropdownButton<int>(
+                    key: const ValueKey('posts-page-size'),
+                    value: _pageSize,
+                    items: const [
+                      DropdownMenuItem(value: 5, child: Text('5')),
+                      DropdownMenuItem(value: 10, child: Text('10')),
+                      DropdownMenuItem(value: 20, child: Text('20')),
+                      DropdownMenuItem(value: -1, child: Text('All')),
+                    ],
+                    onChanged: (size) {
+                      if (size != null) {
+                        setState(() {
+                          _pageSize = size;
+                          _currentPage = 0;
+                        });
+                      }
+                    },
+                  ),
+                ],
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,
