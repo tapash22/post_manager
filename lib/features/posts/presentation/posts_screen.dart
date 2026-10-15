@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/presentation/app_bar_actions.dart';
 import '../../../core/presentation/app_header_bar.dart';
+import '../../../core/routing/app_router.dart';
 import '../../auth/application/auth_provider.dart';
 import '../../navigation/presentation/app_navigation_drawer.dart';
 import '../application/posts_provider.dart';
 import '../data/post.dart';
-import 'post_details_screen.dart';
 import 'post_form_dialog.dart';
 import 'widgets/post_card.dart';
 
@@ -251,12 +252,8 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
                         child: PostCard(
                           post: post,
                           canManage: isAuthenticated,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (context) =>
-                                  PostDetailsScreen(postId: post.id),
-                            ),
-                          ),
+                          onTap: () =>
+                              context.push(AppRoutes.postDetailsFor(post.id)),
                           onEdit: () => _openPostForm(post: post),
                           onDelete: () => _deletePost(post),
                         ),
@@ -380,75 +377,92 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
   }) {
     final firstShown = resultCount == 0 ? 0 : startIndex + 1;
     final lastShown = endIndex;
+    final summary = Text(
+      resultCount == 0
+          ? 'Showing 0 of 0 posts'
+          : 'Showing $firstShown–$lastShown of $resultCount posts',
+      key: const ValueKey('posts-pagination-summary'),
+    );
+    final pageSizeSelector = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('Per page'),
+        const SizedBox(width: 8),
+        DropdownButton<int>(
+          key: const ValueKey('posts-page-size'),
+          value: _pageSize,
+          items: const [
+            DropdownMenuItem(value: 5, child: Text('5')),
+            DropdownMenuItem(value: 10, child: Text('10')),
+            DropdownMenuItem(value: 20, child: Text('20')),
+            DropdownMenuItem(value: -1, child: Text('All')),
+          ],
+          onChanged: (size) {
+            if (size != null) {
+              setState(() {
+                _pageSize = size;
+                _currentPage = 0;
+              });
+            }
+          },
+        ),
+      ],
+    );
+    final pageNavigation = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          key: const ValueKey('posts-previous-page'),
+          tooltip: 'Previous page',
+          onPressed: currentPage == 0
+              ? null
+              : () => setState(() => _currentPage = currentPage - 1),
+          icon: const Icon(Icons.chevron_left),
+        ),
+        Text(
+          _pageSize == -1
+              ? 'All posts'
+              : 'Page ${currentPage + 1} of $pageCount',
+        ),
+        IconButton(
+          key: const ValueKey('posts-next-page'),
+          tooltip: 'Next page',
+          onPressed: currentPage + 1 >= pageCount
+              ? null
+              : () => setState(() => _currentPage = currentPage + 1),
+          icon: const Icon(Icons.chevron_right),
+        ),
+      ],
+    );
+
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 12,
-            runSpacing: 8,
-            children: [
-              Text(
-                resultCount == 0
-                    ? 'Showing 0 of 0 posts'
-                    : 'Showing $firstShown–$lastShown of $resultCount posts',
-                key: const ValueKey('posts-pagination-summary'),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Per page'),
-                  const SizedBox(width: 8),
-                  DropdownButton<int>(
-                    key: const ValueKey('posts-page-size'),
-                    value: _pageSize,
-                    items: const [
-                      DropdownMenuItem(value: 5, child: Text('5')),
-                      DropdownMenuItem(value: 10, child: Text('10')),
-                      DropdownMenuItem(value: 20, child: Text('20')),
-                      DropdownMenuItem(value: -1, child: Text('All')),
-                    ],
-                    onChanged: (size) {
-                      if (size != null) {
-                        setState(() {
-                          _pageSize = size;
-                          _currentPage = 0;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    key: const ValueKey('posts-previous-page'),
-                    tooltip: 'Previous page',
-                    onPressed: currentPage == 0
-                        ? null
-                        : () => setState(() => _currentPage = currentPage - 1),
-                    icon: const Icon(Icons.chevron_left),
-                  ),
-                  Text(
-                    _pageSize == -1
-                        ? 'All posts'
-                        : 'Page ${currentPage + 1} of $pageCount',
-                  ),
-                  IconButton(
-                    key: const ValueKey('posts-next-page'),
-                    tooltip: 'Next page',
-                    onPressed: currentPage + 1 >= pageCount
-                        ? null
-                        : () => setState(() => _currentPage = currentPage + 1),
-                    icon: const Icon(Icons.chevron_right),
-                  ),
-                ],
-              ),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 600) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    summary,
+                    const SizedBox(height: 8),
+                    pageSizeSelector,
+                    const SizedBox(height: 8),
+                    pageNavigation,
+                  ],
+                );
+              }
+
+              return Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: 12,
+                runSpacing: 8,
+                children: [summary, pageSizeSelector, pageNavigation],
+              );
+            },
           ),
         ),
       ),

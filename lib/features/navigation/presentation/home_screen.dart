@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/routing/app_router.dart';
 import '../../../core/presentation/app_header_bar.dart';
 import '../../../core/presentation/app_bar_actions.dart';
-import '../../posts/presentation/posts_screen.dart';
 import 'app_navigation_drawer.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -46,11 +47,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 28),
                 FilledButton.icon(
-                  onPressed: () => Navigator.of(context).pushReplacement(
-                    MaterialPageRoute<void>(
-                      builder: (context) => const PostsScreen(),
-                    ),
-                  ),
+                  onPressed: () => context.go(AppRoutes.posts),
                   icon: const Icon(Icons.article_outlined),
                   label: const Text('Manage posts'),
                 ),

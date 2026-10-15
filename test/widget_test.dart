@@ -4,6 +4,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:post_manager/core/presentation/app_bar_actions.dart';
+import 'package:post_manager/core/routing/app_router.dart';
 import 'package:post_manager/features/auth/application/auth_provider.dart';
 import 'package:post_manager/features/auth/presentation/auth_screen.dart';
 import 'package:post_manager/features/posts/application/posts_provider.dart';
@@ -227,6 +230,50 @@ void main() {
     expect(find.text('Showing 1–1 of 1 posts'), findsOneWidget);
   });
 
+  testWidgets('pagination arrows fit and work on a narrow viewport', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repository = _FakePostRepository(
+      initialPosts: List.generate(
+        12,
+        (index) => Post(
+          userId: 1,
+          id: index + 1,
+          title: 'Post title ${index + 1}',
+          body: 'Body ${index + 1}',
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [postRepositoryProvider.overrideWithValue(repository)],
+        child: const MyApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _openPosts(tester);
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('posts-next-page')),
+      500,
+      scrollable: _postsScrollable(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('posts-previous-page')), findsOneWidget);
+    expect(find.byKey(const ValueKey('posts-next-page')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(const ValueKey('posts-next-page')));
+    await tester.pumpAndSettle();
+    expect(find.text('Showing 11–12 of 12 posts'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('drawer navigates between Home and Posts', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -251,6 +298,42 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Welcome to Post Manager'), findsOneWidget);
+  });
+
+  testWidgets('authentication routes guests to login before profile', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          postRepositoryProvider.overrideWithValue(_FakePostRepository()),
+        ],
+        child: const MyApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    GoRouter.of(tester.element(find.byType(AppBarActions))).go(
+      AppRoutes.profile,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Log in or register'), findsOneWidget);
+    expect(find.text('Profile'), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('auth-email')),
+      'demo@example.com',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('auth-password')),
+      'password123',
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('auth-submit')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text('Demo User'), findsOneWidget);
   });
 
   testWidgets('guests can view details but need an account to manage posts', (

@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../features/auth/application/auth_provider.dart';
-import '../../features/auth/presentation/auth_screen.dart';
-import '../../features/auth/presentation/profile_screen.dart';
+import '../routing/app_router.dart';
 import '../application/theme_provider.dart';
-import 'settings_screen.dart';
 
 class AppBarActions extends ConsumerWidget {
   const AppBarActions({super.key});
@@ -42,17 +41,9 @@ class AppBarActions extends ConsumerWidget {
             onSelected: (action) async {
               switch (action) {
                 case 'profile':
-                  await Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (context) => const ProfileScreen(),
-                    ),
-                  );
+                  await context.push(AppRoutes.profile);
                 case 'settings':
-                  await Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (context) => const SettingsScreen(),
-                    ),
-                  );
+                  await context.push(AppRoutes.settings);
                 case 'logout':
                   try {
                     await ref.read(authProvider.notifier).logout();
@@ -115,9 +106,7 @@ class AppBarActions extends ConsumerWidget {
         else
           IconButton(
             tooltip: 'Log in or register',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (context) => const AuthScreen()),
-            ),
+            onPressed: () => context.push(AppRoutes.auth),
             icon: const Icon(Icons.login),
           ),
       ],

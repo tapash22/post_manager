@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
-import '../../posts/presentation/posts_screen.dart';
-import 'home_screen.dart';
+import '../../../core/routing/app_router.dart';
 
 class AppNavigationDrawer extends StatelessWidget {
   final bool postsSelected;
@@ -17,12 +17,7 @@ class AppNavigationDrawer extends StatelessWidget {
       selectedIndex: postsSelected ? 1 : 0,
       onDestinationSelected: (index) {
         Navigator.of(context).pop();
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute<void>(
-            builder: (context) =>
-                index == 0 ? const HomeScreen() : const PostsScreen(),
-          ),
-        );
+        context.go(index == 0 ? AppRoutes.home : AppRoutes.posts);
       },
       children: const [
         Padding(

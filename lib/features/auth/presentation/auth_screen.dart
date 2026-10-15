@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/routing/app_router.dart';
 import '../../../core/presentation/app_header_bar.dart';
 
-import '../../navigation/presentation/home_screen.dart';
 import '../application/auth_provider.dart';
 import 'auth_form.dart';
 
@@ -16,6 +17,25 @@ class AuthScreen extends ConsumerStatefulWidget {
 
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _redirectScheduled = false;
+  bool _isRouterAuthRoute = false;
+  String? _returnTo;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_isRouterAuthRoute || _returnTo != null) {
+      return;
+    }
+    final route = GoRouter.of(context).state;
+    if (route.uri.path == AppRoutes.auth) {
+      _isRouterAuthRoute = true;
+      final destination = route.uri.queryParameters['from'];
+      if (destination == AppRoutes.profile ||
+          destination == AppRoutes.settings) {
+        _returnTo = destination;
+      }
+    }
+  }
 
   void _redirectHome(BuildContext context) {
     if (_redirectScheduled) {
@@ -23,11 +43,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
     _redirectScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (context.mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute<void>(builder: (context) => const HomeScreen()),
-          (route) => false,
-        );
+      if (!context.mounted) {
+        return;
+      }
+      if (_isRouterAuthRoute) {
+        context.go(_returnTo ?? AppRoutes.home);
+      } else {
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     });
   }
