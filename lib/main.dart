@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import 'core/application/theme_provider.dart';
-import 'core/routing/app_router.dart';
-import 'features/auth/application/auth_provider.dart';
+import 'features/navigation/presentation/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,32 +12,14 @@ Future<void> main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends ConsumerStatefulWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
-
-  @override
-  ConsumerState<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends ConsumerState<MyApp> {
-  late final GoRouter _router = createAppRouter(
-    readAuthState: () => ref.read(authProvider),
-  );
-  late final ProviderSubscription<AuthState> _authSubscription;
-
-  @override
-  void initState() {
-    super.initState();
-    _authSubscription = ref.listenManual(authProvider, (previous, next) {
-      _router.refresh();
-    });
-  }
 
   // This widget is the root of your application.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
-    return MaterialApp.router(
+    return MaterialApp(
       title: 'Post Manager',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
@@ -69,14 +49,7 @@ class _MyAppState extends ConsumerState<MyApp> {
           brightness: Brightness.dark,
         ),
       ),
-      routerConfig: _router,
+      home: const HomeScreen(),
     );
-  }
-
-  @override
-  void dispose() {
-    _authSubscription.close();
-    _router.dispose();
-    super.dispose();
   }
 }
