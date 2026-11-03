@@ -19,7 +19,7 @@ class HomeScreen extends StatelessWidget {
         icon: Icons.home_outlined,
         actions: const [AppBarActions()],
       ),
-      drawer: const AppNavigationDrawer(postsSelected: false),
+      drawer: const AppNavigationDrawer(),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),

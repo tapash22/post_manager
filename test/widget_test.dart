@@ -298,6 +298,25 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Welcome to Post Manager'), findsOneWidget);
+    await tester.tap(find.byTooltip('Open navigation menu'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('About'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('About Post Manager'), findsOneWidget);
+    await tester.tap(find.byTooltip('Open navigation menu'));
+    await tester.pumpAndSettle();
+    final aboutDrawer = tester.widget<NavigationDrawer>(
+      find.byType(NavigationDrawer),
+    );
+    expect(aboutDrawer.selectedIndex, 2);
+    expect(
+      find.byType(NavigationDrawerDestination),
+      findsNWidgets(appNavigationDestinations.length),
+    );
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome to Post Manager'), findsOneWidget);
   });
 
   testWidgets('authentication routes guests to login before profile', (
@@ -313,9 +332,8 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    GoRouter.of(tester.element(find.byType(AppBarActions))).go(
-      AppRoutes.profile,
-    );
+    GoRouter.of(tester.element(find.byType(AppBarActions)))
+        .go(AppRoutes.profile);
     await tester.pumpAndSettle();
     expect(find.text('Log in or register'), findsOneWidget);
     expect(find.text('Profile'), findsNothing);

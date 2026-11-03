@@ -44,6 +44,8 @@ class _MyAppState extends ConsumerState<MyApp> {
       title: 'Post Manager',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
+      themeAnimationDuration: const Duration(milliseconds: 300),
+      themeAnimationCurve: Curves.easeInOutCubic,
       theme: ThemeData(
         useMaterial3: true,
         fontFamily: 'Roboto',

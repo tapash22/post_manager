@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/presentation/app_header_bar.dart';
 import '../../../core/presentation/app_bar_actions.dart';
+import '../../../core/presentation/app_header_bar.dart';
+import '../../../core/presentation/smooth_state_switcher.dart';
 import '../application/posts_provider.dart';
 
 class PostDetailsScreen extends ConsumerWidget {
@@ -20,54 +21,62 @@ class PostDetailsScreen extends ConsumerWidget {
         icon: Icons.article_outlined,
         actions: const [AppBarActions()],
       ),
-      body: postAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.cloud_off, size: 48),
-                const SizedBox(height: 12),
-                const Text('Could not load post details.'),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: () => ref.invalidate(postDetailsProvider(postId)),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Try again'),
-                ),
-              ],
+      body: SmoothStateSwitcher(
+        child: postAsync.when(
+          loading: () => const Center(
+            key: ValueKey('post-details-loading'),
+            child: CircularProgressIndicator(),
+          ),
+          error: (error, stackTrace) => Center(
+            key: const ValueKey('post-details-error'),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.cloud_off, size: 48),
+                  const SizedBox(height: 12),
+                  const Text('Could not load post details.'),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () =>
+                        ref.invalidate(postDetailsProvider(postId)),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Try again'),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        data: (post) => Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: ListView(
-              padding: const EdgeInsets.all(24),
-              children: [
-                Text(
-                  post.title,
-                  style: Theme.of(context).textTheme.headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    Chip(label: Text('Post ID: ${post.id}')),
-                    Chip(label: Text('User ID: ${post.userId}')),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  post.body,
-                  style: Theme.of(context).textTheme.bodyLarge
-                      ?.copyWith(height: 1.6),
-                ),
-              ],
+          data: (post) => Center(
+            key: const ValueKey('post-details-data'),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  Text(
+                    post.title,
+                    style: Theme.of(context).textTheme.headlineSmall
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      Chip(label: Text('Post ID: ${post.id}')),
+                      Chip(label: Text('User ID: ${post.userId}')),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    post.body,
+                    style: Theme.of(context).textTheme.bodyLarge
+                        ?.copyWith(height: 1.6),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

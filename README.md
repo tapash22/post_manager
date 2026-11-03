@@ -6,6 +6,95 @@ A feature-rich Flutter web and mobile application for viewing, searching, creati
 
 ## 🚀 App Architecture & Workflow
 
+### Architecture at a glance
+
+The app is organized by feature. Presentation widgets read or invoke Riverpod
+providers; application controllers coordinate work; repositories and API clients
+handle post data access.
+
+```mermaid
+flowchart TD
+    User[User]
+    App[main.dart<br/>ProviderScope + MaterialApp.router]
+    Loader[MobileIntroLoader]
+    Router[GoRouter<br/>route guards + page transitions]
+    Destinations[appNavigationDestinations<br/>path + label + icons + screen builder]
+    Drawer[AppNavigationDrawer<br/>generated from destinations]
+
+    subgraph Features[Feature screens]
+        Home[HomeScreen]
+        Posts[PostsScreen<br/>search + pagination + CRUD UI]
+        Details[PostDetailsScreen]
+        About[AboutScreen]
+        Auth[AuthScreen / ProfileScreen]
+        Settings[SettingsScreen]
+    end
+
+    subgraph State[Riverpod state]
+        AuthState[authProvider / AuthController]
+        PostsState[postsProvider / PostsController]
+        DetailsState[postDetailsProvider]
+        ThemeState[themeModeProvider / ThemeModeController]
+    end
+
+    subgraph PostData[Posts data access]
+        Repository[PostRepository]
+        Api[PostApi]
+        Dio[Dio client]
+        Remote[JSONPlaceholder REST API]
+    end
+
+    Storage[(SharedPreferences<br/>local accounts + session)]
+
+    User --> App
+    App --> Loader
+    Loader --> Router
+    Router --> Destinations
+    Destinations --> Drawer
+    Destinations --> Home
+    Destinations --> Posts
+    Destinations --> About
+    Router --> Details
+    Router --> Auth
+    Router --> Settings
+
+    Home --> ThemeState
+    Posts --> PostsState
+    Posts --> AuthState
+    Details --> DetailsState
+    Auth --> AuthState
+    Settings --> ThemeState
+    AuthState <--> Storage
+
+    PostsState --> Repository
+    DetailsState --> Repository
+    Repository --> Api
+    Api --> Dio
+    Dio --> Remote
+```
+
+### Source layout
+
+```text
+lib/
+├── main.dart
+├── core/
+│   ├── application/    # Shared app state, such as the theme
+│   ├── network/        # Shared Dio client
+│   ├── presentation/   # Shared UI, headers, settings, loading, animations
+│   └── routing/        # Route definitions, guards, and transitions
+└── features/
+    ├── auth/
+    │   ├── application/    # Auth state and controller
+    │   └── presentation/   # Login, registration, and profile screens
+    ├── navigation/
+    │   └── presentation/   # Home, About, and dynamic navigation drawer
+    └── posts/
+        ├── application/    # Posts and post-details providers/controllers
+        ├── data/           # Post model, repository, and API client
+        └── presentation/   # Posts, details, forms, and reusable widgets
+```
+
 ### 1. App Initialization & Session Restoration (`main.dart`)
 
 - **Environment Configuration:** Loads application configuration.
@@ -18,7 +107,7 @@ A feature-rich Flutter web and mobile application for viewing, searching, creati
 ### 2. Navigation & Routing
 
 - **Landing Page:** Starts at `HomeScreen`, featuring a welcome section and quick actions.
-- **Drawer Navigation:** `AppNavigationDrawer` allows navigation between Home and Posts.
+- **Drawer Navigation:** `AppNavigationDrawer` builds its destinations from the shared `appNavigationDestinations` registry. Add a destination there to register its drawer entry and route together.
 - **Global App Bar:** `app_bar_actions.dart` provides theme switching and user avatar or login controls.
 - **Authentication Navigation:** Users can navigate to the authentication screen to register or log in.
 - **Post Details Navigation:** Selecting a post opens `PostDetailsScreen`.
@@ -138,68 +227,59 @@ Authenticated users can manage posts through the CRUD workflow.
 
 ## 🔄 Application Data Flow
 
-### Application Initialization
+### Startup and navigation
 
-```text
-main.dart
-   │
-   ├── Load application configuration
-   ├── Initialize Riverpod ProviderScope
-   ├── Initialize theme provider
-   ├── Restore accounts and session
-   │       └── SharedPreferences
-   └── Render HomeScreen
+```mermaid
+flowchart LR
+    Start[main] --> Env[Load .env]
+    Env --> Scope[ProviderScope]
+    Scope --> App[MyApp / MaterialApp.router]
+    App --> Router[GoRouter]
+    App --> Theme[Watch themeModeProvider]
+    App --> Intro[MobileIntroLoader overlay]
+    Router --> Registry[appNavigationDestinations]
+    Registry --> Drawer[Build drawer entries]
+    Registry --> Routes[Build matching GoRoutes]
+    Routes --> Guard{Protected route?}
+    Guard -->|Guest| Login[AuthScreen]
+    Guard -->|Allowed| Screen[Feature screen]
+    AuthState[authProvider changes] --> Refresh[Refresh GoRouter guards]
+    Refresh --> Guard
 ```
 
 ### Authentication Flow
 
-```text
-AuthScreen
-   │
-   ├── Register
-   │     ├── Validate email and password
-   │     ├── Generate salted password hash
-   │     ├── Save account locally
-   │     └── Update authentication state
-   │
-   ├── Login
-   │     ├── Find registered account
-   │     ├── Verify password hash
-   │     ├── Save active session
-   │     └── Navigate to HomeScreen
-   │
-   └── Logout
-         ├── Clear active session
-         └── Preserve registered accounts
+```mermaid
+flowchart LR
+    UI[AuthScreen] --> Controller[AuthController]
+    Controller --> Validate[Validate credentials]
+    Validate --> Accounts[(SharedPreferences<br/>accounts)]
+    Controller --> Session[(SharedPreferences<br/>current session)]
+    Controller --> State[Update AuthState]
+    State --> Router[Refresh route guards]
+    Router --> Destination[Continue to requested page or Home]
 ```
 
 ### Posts CRUD Flow
 
-```text
-PostsScreen
-   │
-   ├── Search and pagination
-   ├── Open PostDetailsScreen
-   │
-   └── Authenticated CRUD actions
-           │
-           ▼
-     Riverpod Controller
-           │
-           ▼
-       Repository
-           │
-           ▼
-         PostApi
-           │
-           ▼
-       REST API
-           │
-           ▼
-    Update current UI state
-           │
-           ▼
-    Show success or error feedback
+```mermaid
+flowchart LR
+    ListUI[PostsScreen] --> ListProvider[postsProvider]
+    DetailsUI[PostDetailsScreen] --> DetailsProvider[postDetailsProvider]
+    ListProvider --> Controller[PostsController]
+    Controller --> AuthCheck{Authenticated for mutations?}
+    AuthCheck -->|No| Error[Show error feedback]
+    AuthCheck -->|Yes| Repo[PostRepository]
+    DetailsProvider --> Repo
+    Repo --> Api[PostApi]
+    Api --> Dio[Dio client]
+    Dio --> Server[JSONPlaceholder]
+    Server --> Api
+    Api --> Repo
+    Repo --> Controller
+    Controller --> State[Update Riverpod state]
+    State --> ListUI
+    State --> DetailsUI
 ```
 
 ---

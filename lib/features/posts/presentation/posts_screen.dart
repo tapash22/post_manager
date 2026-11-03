@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/presentation/app_bar_actions.dart';
 import '../../../core/presentation/app_header_bar.dart';
+import '../../../core/presentation/smooth_state_switcher.dart';
 import '../../../core/routing/app_router.dart';
 import '../../auth/application/auth_provider.dart';
 import '../../navigation/presentation/app_navigation_drawer.dart';
@@ -152,7 +153,7 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
     final isAuthenticated = ref.watch(authProvider).isAuthenticated;
 
     return Scaffold(
-      drawer: const AppNavigationDrawer(postsSelected: true),
+      drawer: const AppNavigationDrawer(),
       appBar: AppHeaderBar(
         title: 'Post Manager',
         icon: Icons.article_outlined,
@@ -172,103 +173,107 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
           ref.invalidate(postsProvider);
           await ref.read(postsProvider.future);
         },
-        child: postsAsync.when(
-          loading: () => ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: const [
-              SizedBox(
-                height: 300,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ],
-          ),
-          error: (error, stackTrace) => ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(24),
-            children: [
-              const SizedBox(height: 100),
-              const Icon(Icons.cloud_off, size: 56),
-              const SizedBox(height: 16),
-              const Center(child: Text('Could not load posts.')),
-              const SizedBox(height: 12),
-              Center(
-                child: TextButton.icon(
-                  onPressed: () => ref.invalidate(postsProvider),
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Try again'),
-                ),
-              ),
-            ],
-          ),
-          data: (posts) {
-            final query = _searchController.text.trim().toLowerCase();
-            final filteredPosts = posts.where((post) {
-              if (query.isEmpty) {
-                return true;
-              }
-              final searchableText = switch (_searchField) {
-                PostSearchField.title => post.title,
-                PostSearchField.body => post.body,
-              };
-              return searchableText.toLowerCase().contains(query);
-            }).toList();
-            final pageCount = _pageSize == -1 || filteredPosts.isEmpty
-                ? 1
-                : (filteredPosts.length / _pageSize).ceil();
-            final safePage = _currentPage.clamp(0, pageCount - 1).toInt();
-            final startIndex = safePage * _pageSize;
-            final endIndex = _pageSize == -1
-                ? filteredPosts.length
-                : (startIndex + _pageSize)
-                      .clamp(0, filteredPosts.length)
-                      .toInt();
-            final visiblePosts = _pageSize == -1
-                ? filteredPosts
-                : filteredPosts.sublist(startIndex, endIndex);
-
-            return ListView(
-              key: const ValueKey('posts-list'),
+        child: SmoothStateSwitcher(
+          child: postsAsync.when(
+            loading: () => ListView(
+              key: const ValueKey('posts-loading'),
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              children: [
-                _searchControls(),
-                if (!isAuthenticated) _guestNotice(context),
-                if (visiblePosts.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 56),
-                    child: Center(
-                      child: Text(
-                        query.isEmpty
-                            ? 'No posts found.'
-                            : 'No posts match your search.',
-                      ),
-                    ),
-                  )
-                else
-                  for (final post in visiblePosts)
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 900),
-                        child: PostCard(
-                          post: post,
-                          canManage: isAuthenticated,
-                          onTap: () =>
-                              context.push(AppRoutes.postDetailsFor(post.id)),
-                          onEdit: () => _openPostForm(post: post),
-                          onDelete: () => _deletePost(post),
-                        ),
-                      ),
-                    ),
-                _paginationControls(
-                  resultCount: filteredPosts.length,
-                  startIndex: startIndex,
-                  endIndex: endIndex,
-                  pageCount: pageCount,
-                  currentPage: safePage,
+              children: const [
+                SizedBox(
+                  height: 300,
+                  child: Center(child: CircularProgressIndicator()),
                 ),
               ],
-            );
-          },
+            ),
+            error: (error, stackTrace) => ListView(
+              key: const ValueKey('posts-error'),
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(24),
+              children: [
+                const SizedBox(height: 100),
+                const Icon(Icons.cloud_off, size: 56),
+                const SizedBox(height: 16),
+                const Center(child: Text('Could not load posts.')),
+                const SizedBox(height: 12),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () => ref.invalidate(postsProvider),
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Try again'),
+                  ),
+                ),
+              ],
+            ),
+            data: (posts) {
+              final query = _searchController.text.trim().toLowerCase();
+              final filteredPosts = posts.where((post) {
+                if (query.isEmpty) {
+                  return true;
+                }
+                final searchableText = switch (_searchField) {
+                  PostSearchField.title => post.title,
+                  PostSearchField.body => post.body,
+                };
+                return searchableText.toLowerCase().contains(query);
+              }).toList();
+              final pageCount = _pageSize == -1 || filteredPosts.isEmpty
+                  ? 1
+                  : (filteredPosts.length / _pageSize).ceil();
+              final safePage = _currentPage.clamp(0, pageCount - 1).toInt();
+              final startIndex = safePage * _pageSize;
+              final endIndex = _pageSize == -1
+                  ? filteredPosts.length
+                  : (startIndex + _pageSize)
+                        .clamp(0, filteredPosts.length)
+                        .toInt();
+              final visiblePosts = _pageSize == -1
+                  ? filteredPosts
+                  : filteredPosts.sublist(startIndex, endIndex);
+
+              return ListView(
+                key: const ValueKey('posts-list'),
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                children: [
+                  _searchControls(),
+                  if (!isAuthenticated) _guestNotice(context),
+                  if (visiblePosts.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 56),
+                      child: Center(
+                        child: Text(
+                          query.isEmpty
+                              ? 'No posts found.'
+                              : 'No posts match your search.',
+                        ),
+                      ),
+                    )
+                  else
+                    for (final post in visiblePosts)
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 900),
+                          child: PostCard(
+                            post: post,
+                            canManage: isAuthenticated,
+                            onTap: () =>
+                                context.push(AppRoutes.postDetailsFor(post.id)),
+                            onEdit: () => _openPostForm(post: post),
+                            onDelete: () => _deletePost(post),
+                          ),
+                        ),
+                      ),
+                  _paginationControls(
+                    resultCount: filteredPosts.length,
+                    startIndex: startIndex,
+                    endIndex: endIndex,
+                    pageCount: pageCount,
+                    currentPage: safePage,
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
       floatingActionButton: postsAsync.hasValue && isAuthenticated
