@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../data/post.dart';
+import '../domain/entities/post.dart';
 
 class PostFormDialog extends StatefulWidget {
   const PostFormDialog({super.key, required this.post, required this.onSave});

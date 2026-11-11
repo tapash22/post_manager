@@ -9,7 +9,8 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
+    final themeMode =
+        ref.watch(themeModeProvider).asData?.value ?? ThemeMode.light;
 
     return Scaffold(
       appBar: const AppHeaderBar(
@@ -22,7 +23,17 @@ class SettingsScreen extends ConsumerWidget {
             title: const Text('Dark theme'),
             subtitle: const Text('Use a dark appearance throughout the app'),
             value: themeMode == ThemeMode.dark,
-            onChanged: (_) => ref.read(themeModeProvider.notifier).toggle(),
+            onChanged: (_) async {
+              try {
+                await ref.read(themeModeProvider.notifier).toggle();
+              } catch (error) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not update theme: $error')),
+                  );
+                }
+              }
+            },
             secondary: const Icon(Icons.dark_mode_outlined),
           ),
         ],

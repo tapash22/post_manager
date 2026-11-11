@@ -9,7 +9,7 @@ import '../../../core/routing/app_router.dart';
 import '../../auth/application/auth_provider.dart';
 import '../../navigation/presentation/app_navigation_drawer.dart';
 import '../application/posts_provider.dart';
-import '../data/post.dart';
+import '../domain/entities/post.dart';
 import 'post_form_dialog.dart';
 import 'widgets/post_card.dart';
 
@@ -22,9 +22,12 @@ class PostsScreen extends ConsumerStatefulWidget {
 
 class _PostsScreenState extends ConsumerState<PostsScreen> {
   final _searchController = TextEditingController();
-  PostSearchField _searchField = PostSearchField.title;
-  int _pageSize = 10;
-  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.text = ref.read(postsFilterProvider).query;
+  }
 
   @override
   void dispose() {
@@ -149,7 +152,16 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final postsAsync = ref.watch(postsProvider);
+    ref.listen(postsFilterProvider, (previous, next) {
+      if (_searchController.text != next.query) {
+        _searchController.value = TextEditingValue(
+          text: next.query,
+          selection: TextSelection.collapsed(offset: next.query.length),
+        );
+      }
+    });
+    final postsAsync = ref.watch(postsPageProvider);
+    final filters = ref.watch(postsFilterProvider);
     final isAuthenticated = ref.watch(authProvider).isAuthenticated;
 
     return Scaffold(
@@ -204,52 +216,27 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
                 ),
               ],
             ),
-            data: (posts) {
-              final query = _searchController.text.trim().toLowerCase();
-              final filteredPosts = posts.where((post) {
-                if (query.isEmpty) {
-                  return true;
-                }
-                final searchableText = switch (_searchField) {
-                  PostSearchField.title => post.title,
-                  PostSearchField.body => post.body,
-                };
-                return searchableText.toLowerCase().contains(query);
-              }).toList();
-              final pageCount = _pageSize == -1 || filteredPosts.isEmpty
-                  ? 1
-                  : (filteredPosts.length / _pageSize).ceil();
-              final safePage = _currentPage.clamp(0, pageCount - 1).toInt();
-              final startIndex = safePage * _pageSize;
-              final endIndex = _pageSize == -1
-                  ? filteredPosts.length
-                  : (startIndex + _pageSize)
-                        .clamp(0, filteredPosts.length)
-                        .toInt();
-              final visiblePosts = _pageSize == -1
-                  ? filteredPosts
-                  : filteredPosts.sublist(startIndex, endIndex);
-
+            data: (page) {
               return ListView(
                 key: const ValueKey('posts-list'),
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 children: [
-                  _searchControls(),
+                  _searchControls(filters),
                   if (!isAuthenticated) _guestNotice(context),
-                  if (visiblePosts.isEmpty)
+                  if (page.posts.isEmpty)
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 56),
                       child: Center(
                         child: Text(
-                          query.isEmpty
+                          filters.query.trim().isEmpty
                               ? 'No posts found.'
                               : 'No posts match your search.',
                         ),
                       ),
                     )
                   else
-                    for (final post in visiblePosts)
+                    for (final post in page.posts)
                       Center(
                         child: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 900),
@@ -263,13 +250,7 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
                           ),
                         ),
                       ),
-                  _paginationControls(
-                    resultCount: filteredPosts.length,
-                    startIndex: startIndex,
-                    endIndex: endIndex,
-                    pageCount: pageCount,
-                    currentPage: safePage,
-                  ),
+                  _paginationControls(page: page, pageSize: filters.pageSize),
                 ],
               );
             },
@@ -286,7 +267,7 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
     );
   }
 
-  Widget _searchControls() {
+  Widget _searchControls(PostsFilterState filters) {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 900),
@@ -308,7 +289,9 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
                     child: TextField(
                       key: const ValueKey('post-search'),
                       controller: _searchController,
-                      onChanged: (_) => setState(() => _currentPage = 0),
+                      onChanged: ref
+                          .read(postsFilterProvider.notifier)
+                          .setQuery,
                       decoration: InputDecoration(
                         hintText: 'Search posts',
                         prefixIcon: const Icon(Icons.search),
@@ -318,7 +301,9 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
                                 tooltip: 'Clear search',
                                 onPressed: () {
                                   _searchController.clear();
-                                  setState(() => _currentPage = 0);
+                                  ref
+                                      .read(postsFilterProvider.notifier)
+                                      .setQuery('');
                                 },
                                 icon: const Icon(Icons.clear),
                               ),
@@ -341,7 +326,7 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<PostSearchField>(
                           key: const ValueKey('post-search-field'),
-                          value: _searchField,
+                          value: filters.searchField,
                           items: const [
                             DropdownMenuItem(
                               value: PostSearchField.title,
@@ -351,13 +336,16 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
                               value: PostSearchField.body,
                               child: Text('Body'),
                             ),
+                            DropdownMenuItem(
+                              value: PostSearchField.titleAndBody,
+                              child: Text('Title + body'),
+                            ),
                           ],
                           onChanged: (field) {
                             if (field != null) {
-                              setState(() {
-                                _searchField = field;
-                                _currentPage = 0;
-                              });
+                              ref
+                                  .read(postsFilterProvider.notifier)
+                                  .setSearchField(field);
                             }
                           },
                         ),
@@ -373,19 +361,13 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
     );
   }
 
-  Widget _paginationControls({
-    required int resultCount,
-    required int startIndex,
-    required int endIndex,
-    required int pageCount,
-    required int currentPage,
-  }) {
-    final firstShown = resultCount == 0 ? 0 : startIndex + 1;
-    final lastShown = endIndex;
+  Widget _paginationControls({required PostsPage page, required int pageSize}) {
+    final firstShown = page.totalCount == 0 ? 0 : page.startIndex + 1;
+    final lastShown = page.endIndex;
     final summary = Text(
-      resultCount == 0
+      page.totalCount == 0
           ? 'Showing 0 of 0 posts'
-          : 'Showing $firstShown–$lastShown of $resultCount posts',
+          : 'Showing $firstShown–$lastShown of ${page.totalCount} posts',
       key: const ValueKey('posts-pagination-summary'),
     );
     final pageSizeSelector = Row(
@@ -395,7 +377,7 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
         const SizedBox(width: 8),
         DropdownButton<int>(
           key: const ValueKey('posts-page-size'),
-          value: _pageSize,
+          value: pageSize,
           items: const [
             DropdownMenuItem(value: 5, child: Text('5')),
             DropdownMenuItem(value: 10, child: Text('10')),
@@ -404,10 +386,7 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
           ],
           onChanged: (size) {
             if (size != null) {
-              setState(() {
-                _pageSize = size;
-                _currentPage = 0;
-              });
+              ref.read(postsFilterProvider.notifier).setPageSize(size);
             }
           },
         ),
@@ -419,22 +398,26 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
         IconButton(
           key: const ValueKey('posts-previous-page'),
           tooltip: 'Previous page',
-          onPressed: currentPage == 0
+          onPressed: page.page == 0
               ? null
-              : () => setState(() => _currentPage = currentPage - 1),
+              : () => ref
+                    .read(postsFilterProvider.notifier)
+                    .setPage(page.page - 1),
           icon: const Icon(Icons.chevron_left),
         ),
         Text(
-          _pageSize == -1
+          pageSize == -1
               ? 'All posts'
-              : 'Page ${currentPage + 1} of $pageCount',
+              : 'Page ${page.page + 1} of ${page.pageCount}',
         ),
         IconButton(
           key: const ValueKey('posts-next-page'),
           tooltip: 'Next page',
-          onPressed: currentPage + 1 >= pageCount
+          onPressed: page.page + 1 >= page.pageCount
               ? null
-              : () => setState(() => _currentPage = currentPage + 1),
+              : () => ref
+                    .read(postsFilterProvider.notifier)
+                    .setPage(page.page + 1),
           icon: const Icon(Icons.chevron_right),
         ),
       ],
@@ -499,5 +482,3 @@ class _PostsScreenState extends ConsumerState<PostsScreen> {
     );
   }
 }
-
-enum PostSearchField { title, body }

@@ -11,7 +11,8 @@ class AppBarActions extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
+    final themeMode =
+        ref.watch(themeModeProvider).asData?.value ?? ThemeMode.light;
     final auth = ref.watch(authProvider);
 
     return Row(
@@ -21,7 +22,17 @@ class AppBarActions extends ConsumerWidget {
           tooltip: themeMode == ThemeMode.dark
               ? 'Switch to light theme'
               : 'Switch to dark theme',
-          onPressed: () => ref.read(themeModeProvider.notifier).toggle(),
+          onPressed: () async {
+            try {
+              await ref.read(themeModeProvider.notifier).toggle();
+            } catch (error) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Could not update theme: $error')),
+                );
+              }
+            }
+          },
           icon: Icon(
             themeMode == ThemeMode.dark
                 ? Icons.light_mode_outlined

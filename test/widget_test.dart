@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,11 +7,12 @@ import 'package:go_router/go_router.dart';
 import 'package:post_manager/core/presentation/app_bar_actions.dart';
 import 'package:post_manager/core/routing/app_router.dart';
 import 'package:post_manager/features/auth/application/auth_provider.dart';
+import 'package:post_manager/features/auth/domain/entities/auth_account.dart';
+import 'package:post_manager/features/auth/domain/repositories/auth_repository.dart';
 import 'package:post_manager/features/auth/presentation/auth_screen.dart';
 import 'package:post_manager/features/posts/application/posts_provider.dart';
-import 'package:post_manager/features/posts/data/post.dart';
-import 'package:post_manager/features/posts/data/post_api.dart';
-import 'package:post_manager/features/posts/data/post_repository.dart';
+import 'package:post_manager/features/posts/domain/entities/post.dart';
+import 'package:post_manager/features/posts/domain/repositories/post_repository.dart';
 import 'package:post_manager/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -31,11 +31,13 @@ void main() {
       ProviderScope(
         overrides: [
           postRepositoryProvider.overrideWithValue(_FakePostRepository()),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
         ],
         child: const MyApp(),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(tester.takeException(), isNull);
   });
@@ -44,7 +46,10 @@ void main() {
     final repository = _FakePostRepository();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [postRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          postRepositoryProvider.overrideWithValue(repository),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+        ],
         child: const MyApp(),
       ),
     );
@@ -101,7 +106,10 @@ void main() {
     final repository = _FakePostRepository();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [postRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          postRepositoryProvider.overrideWithValue(repository),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+        ],
         child: const MyApp(),
       ),
     );
@@ -132,7 +140,10 @@ void main() {
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [postRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          postRepositoryProvider.overrideWithValue(repository),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+        ],
         child: const MyApp(),
       ),
     );
@@ -251,7 +262,10 @@ void main() {
     );
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [postRepositoryProvider.overrideWithValue(repository)],
+        overrides: [
+          postRepositoryProvider.overrideWithValue(repository),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
+        ],
         child: const MyApp(),
       ),
     );
@@ -279,6 +293,7 @@ void main() {
       ProviderScope(
         overrides: [
           postRepositoryProvider.overrideWithValue(_FakePostRepository()),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
         ],
         child: const MyApp(),
       ),
@@ -326,6 +341,7 @@ void main() {
       ProviderScope(
         overrides: [
           postRepositoryProvider.overrideWithValue(_FakePostRepository()),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
         ],
         child: const MyApp(),
       ),
@@ -361,6 +377,7 @@ void main() {
       ProviderScope(
         overrides: [
           postRepositoryProvider.overrideWithValue(_FakePostRepository()),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
         ],
         child: const MyApp(),
       ),
@@ -427,6 +444,7 @@ void main() {
       ProviderScope(
         overrides: [
           postRepositoryProvider.overrideWithValue(_FakePostRepository()),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
         ],
         child: const MyApp(),
       ),
@@ -520,6 +538,7 @@ void main() {
       ProviderScope(
         overrides: [
           postRepositoryProvider.overrideWithValue(_FakePostRepository()),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
         ],
         child: const MyApp(),
       ),
@@ -533,6 +552,7 @@ void main() {
       ProviderScope(
         overrides: [
           postRepositoryProvider.overrideWithValue(_FakePostRepository()),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
         ],
         child: const MyApp(),
       ),
@@ -563,6 +583,7 @@ void main() {
       ProviderScope(
         overrides: [
           postRepositoryProvider.overrideWithValue(_FakePostRepository()),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
         ],
         child: const MyApp(),
       ),
@@ -590,6 +611,7 @@ void main() {
       ProviderScope(
         overrides: [
           postRepositoryProvider.overrideWithValue(_FakePostRepository()),
+          authRepositoryProvider.overrideWithValue(_FakeAuthRepository()),
         ],
         child: const MyApp(),
       ),
@@ -673,7 +695,7 @@ Finder _postsScrollable() => find
     )
     .first;
 
-class _FakePostRepository extends PostRepository {
+class _FakePostRepository implements PostRepository {
   _FakePostRepository({List<Post>? initialPosts})
     : posts =
           initialPosts ??
@@ -684,8 +706,7 @@ class _FakePostRepository extends PostRepository {
               title: 'Existing title',
               body: 'Existing body',
             ),
-          ],
-      super(PostApi(Dio()));
+          ];
 
   final List<Post> posts;
   int _nextId = 2;
@@ -717,5 +738,38 @@ class _FakePostRepository extends PostRepository {
   @override
   Future<void> deletePost(int id) async {
     posts.removeWhere((post) => post.id == id);
+  }
+}
+
+class _FakeAuthRepository implements AuthRepository {
+  final Map<String, AuthAccount> _accounts = {};
+  String? _currentEmail;
+
+  @override
+  Future<Map<String, AuthAccount>> loadAccounts({
+    required AuthAccount defaultAccount,
+  }) async {
+    if (_accounts.isEmpty) {
+      _accounts['demo@example.com'] = defaultAccount;
+    }
+    return Map.unmodifiable(_accounts);
+  }
+
+  @override
+  Future<void> saveAccount(String email, AuthAccount account) async {
+    _accounts[email] = account;
+  }
+
+  @override
+  Future<String?> getCurrentEmail() async => _currentEmail;
+
+  @override
+  Future<void> saveCurrentEmail(String email) async {
+    _currentEmail = email;
+  }
+
+  @override
+  Future<void> clearCurrentEmail() async {
+    _currentEmail = null;
   }
 }

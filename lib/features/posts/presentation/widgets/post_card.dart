@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../data/post.dart';
+import '../../domain/entities/post.dart';
 
 class PostCard extends StatelessWidget {
   final Post post;
@@ -21,10 +21,7 @@ class PostCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 6,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -35,10 +32,7 @@ class PostCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 18,
-                    child: Text('${post.id}'),
-                  ),
+                  CircleAvatar(radius: 18, child: Text('${post.id}')),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -73,15 +67,11 @@ class PostCard extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 post.title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Text(
-                post.body,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+              Text(post.body, style: Theme.of(context).textTheme.bodyMedium),
             ],
           ),
         ),

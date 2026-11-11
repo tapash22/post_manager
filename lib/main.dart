@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/application/theme_provider.dart';
 import 'core/presentation/mobile_intro_loader.dart';
 import 'core/routing/app_router.dart';
+import 'core/storage/app_database.dart';
 import 'features/auth/application/auth_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: '.env');
+  await AppDatabase.initialize();
 
   runApp(const ProviderScope(child: MyApp()));
 }
@@ -39,7 +39,8 @@ class _MyAppState extends ConsumerState<MyApp> {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    final themeMode = ref.watch(themeModeProvider);
+    final themeMode =
+        ref.watch(themeModeProvider).asData?.value ?? ThemeMode.light;
     return MaterialApp.router(
       title: 'Post Manager',
       debugShowCheckedModeBanner: false,

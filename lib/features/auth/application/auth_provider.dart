@@ -1,12 +1,36 @@
+// JSON (jsonEncode, jsonDecode) and converting strings to bytes (utf8.encode).
 import 'dart:convert';
+// used here for Random.secure() to generate cryptographic-strength random numbers.
 import 'dart:math';
 
+// utilizing sha256 for hashing passwords.
 import 'package:crypto/crypto.dart';
+//Flutter Riverpod state management primitives (NotifierProvider, Notifier).
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../data/datasources/auth_account_local_data_source.dart';
+import '../data/datasources/auth_session_local_data_source.dart';
+import '../data/repositories/local_auth_repository.dart';
+import '../domain/entities/auth_account.dart';
+import '../domain/repositories/auth_repository.dart';
 
 final authProvider = NotifierProvider<AuthController, AuthState>(
   AuthController.new,
+);
+
+final authAccountLocalDataSourceProvider = Provider<AuthAccountLocalDataSource>(
+  (ref) => AuthAccountLocalDataSource(),
+);
+
+final authSessionLocalDataSourceProvider = Provider<AuthSessionLocalDataSource>(
+  (ref) => AuthSessionLocalDataSource(),
+);
+
+final authRepositoryProvider = Provider<AuthRepository>(
+  (ref) => LocalAuthRepository(
+    accounts: ref.watch(authAccountLocalDataSourceProvider),
+    session: ref.watch(authSessionLocalDataSourceProvider),
+  ),
 );
 
 class AuthState {
@@ -21,55 +45,34 @@ class AuthState {
 }
 
 class AuthController extends Notifier<AuthState> {
-  static const _accountsKey = 'post_manager_accounts';
-  static const _currentEmailKey = 'post_manager_current_email';
+  static final _emailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
-  final Map<String, _LocalAccount> _accounts = {};
+  final Map<String, AuthAccount> _accounts = {};
+  late AuthRepository _repository;
+  // A future tracker ensuring async loading operations complete before actions like login or registration run.
   late Future<void> _initialization;
 
   @override
   AuthState build() {
+    _repository = ref.read(authRepositoryProvider);
     _initialization = _loadAccounts();
     return const AuthState();
   }
 
   Future<void> _loadAccounts() async {
     try {
-      final preferences = await SharedPreferences.getInstance();
-      final storedAccounts = preferences.getString(_accountsKey);
-
-      if (storedAccounts == null) {
-        _accounts['demo@example.com'] = _LocalAccount(
+      final accounts = await _repository.loadAccounts(
+        defaultAccount: AuthAccount(
           name: 'Demo User',
           salt: 'post-manager-demo-account-v1',
           passwordHash: _hashPassword(
             'post-manager-demo-account-v1',
             'password123',
           ),
-        );
-        await _saveAccounts(preferences);
-      } else {
-        final decoded = jsonDecode(storedAccounts);
-        if (decoded is! List<dynamic>) {
-          throw const FormatException('Stored accounts must be a list.');
-        }
-        for (final item in decoded) {
-          if (item is! Map<String, dynamic> ||
-              item['email'] is! String ||
-              item['name'] is! String ||
-              item['salt'] is! String ||
-              item['passwordHash'] is! String) {
-            throw const FormatException('Stored account data is invalid.');
-          }
-          _accounts[item['email'] as String] = _LocalAccount(
-            name: item['name'] as String,
-            salt: item['salt'] as String,
-            passwordHash: item['passwordHash'] as String,
-          );
-        }
-      }
-
-      final currentEmail = preferences.getString(_currentEmailKey);
+        ),
+      );
+      _accounts.addAll(accounts);
+      final currentEmail = await _repository.getCurrentEmail();
       final account = currentEmail == null ? null : _accounts[currentEmail];
       state = AuthState(
         isReady: true,
@@ -89,22 +92,34 @@ class AuthController extends Notifier<AuthState> {
     required String email,
     required String password,
   }) async {
+    // Halts execution until _loadAccounts() completes successfully.
     await _ensureInitialized();
+    if (name.trim().isEmpty) {
+      throw StateError('Enter your name.');
+    }
     final normalizedEmail = email.trim().toLowerCase();
+    if (!_emailPattern.hasMatch(normalizedEmail)) {
+      throw StateError('Enter a valid email address.');
+    }
+    if (password.length < 6) {
+      throw StateError('Use at least 6 characters.');
+    }
     if (_accounts.containsKey(normalizedEmail)) {
       throw StateError('An account with this email already exists.');
     }
 
     final salt = _createSalt();
-    _accounts[normalizedEmail] = _LocalAccount(
+    _accounts[normalizedEmail] = AuthAccount(
       name: name.trim(),
       salt: salt,
       passwordHash: _hashPassword(salt, password),
     );
 
     try {
-      final preferences = await SharedPreferences.getInstance();
-      await _saveAccounts(preferences);
+      await _repository.saveAccount(
+        normalizedEmail,
+        _accounts[normalizedEmail]!,
+      );
       state = const AuthState(isReady: true);
     } catch (error) {
       _accounts.remove(normalizedEmail);
@@ -121,14 +136,7 @@ class AuthController extends Notifier<AuthState> {
       throw StateError('Email or password is incorrect.');
     }
 
-    final preferences = await SharedPreferences.getInstance();
-    final saved = await preferences.setString(
-      _currentEmailKey,
-      normalizedEmail,
-    );
-    if (!saved) {
-      throw StateError('Could not save the local login session.');
-    }
+    await _repository.saveCurrentEmail(normalizedEmail);
     state = AuthState(
       isReady: true,
       name: account.name,
@@ -138,11 +146,7 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> logout() async {
     await _ensureInitialized();
-    final preferences = await SharedPreferences.getInstance();
-    final removed = await preferences.remove(_currentEmailKey);
-    if (!removed) {
-      throw StateError('Could not clear the local login session.');
-    }
+    await _repository.clearCurrentEmail();
     state = const AuthState(isReady: true);
   }
 
@@ -151,25 +155,6 @@ class AuthController extends Notifier<AuthState> {
     if (state.error != null) {
       throw StateError(state.error!);
     }
-  }
-
-  Future<void> _saveAccounts(SharedPreferences preferences) {
-    final accounts = [
-      for (final entry in _accounts.entries)
-        {
-          'email': entry.key,
-          'name': entry.value.name,
-          'salt': entry.value.salt,
-          'passwordHash': entry.value.passwordHash,
-        },
-    ];
-    return preferences.setString(_accountsKey, jsonEncode(accounts)).then((
-      saved,
-    ) {
-      if (!saved) {
-        throw StateError('The local account data could not be saved.');
-      }
-    });
   }
 
   String _createSalt() {
@@ -181,16 +166,4 @@ class AuthController extends Notifier<AuthState> {
   String _hashPassword(String salt, String password) {
     return sha256.convert(utf8.encode('$salt:$password')).toString();
   }
-}
-
-class _LocalAccount {
-  final String name;
-  final String salt;
-  final String passwordHash;
-
-  const _LocalAccount({
-    required this.name,
-    required this.salt,
-    required this.passwordHash,
-  });
 }
