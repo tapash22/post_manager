@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/auth_provider.dart';
+import '../data/datasources/post_api_data_source.dart';
 import '../data/datasources/post_local_data_source.dart';
+import '../data/repositories/api_post_repository.dart';
 import '../data/repositories/local_post_repository.dart';
 import '../domain/entities/post.dart';
 import '../domain/repositories/post_repository.dart';
@@ -11,8 +13,20 @@ final postLocalDataSourceProvider = Provider<PostLocalDataSource>(
   (ref) => PostLocalDataSource.fromDatabase(),
 );
 
-final postRepositoryProvider = Provider<PostRepository>(
+final localPostRepositoryProvider = Provider<PostRepository>(
   (ref) => LocalPostRepository(ref.watch(postLocalDataSourceProvider)),
+);
+
+final postApiDataSourceProvider = Provider<PostApiDataSource>((ref) {
+  final dataSource = PostApiDataSource();
+  ref.onDispose(dataSource.close);
+  return dataSource;
+});
+
+final postRepositoryProvider = Provider<PostRepository>(
+  (ref) => ApiPostRepository(
+    ref.watch(postApiDataSourceProvider),
+  ),
 );
 
 final getPostsProvider = Provider<GetPosts>(

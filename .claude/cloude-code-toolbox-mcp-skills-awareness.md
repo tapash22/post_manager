@@ -1,6 +1,6 @@
 # Claude Code ToolBox — MCP & Skills awareness
 
-_Generated: 2026-11-19T21:45:16.159Z_
+_Generated: 2026-11-20T17:05:32.485Z_
 
 ## How to use this report
 

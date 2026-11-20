@@ -1,8 +1,10 @@
 # Post Manager
 
-A Flutter app for managing posts offline. Posts and local demo accounts are
-stored in Hive CE; theme preferences and the current login session use
-SharedPreferences. Post CRUD does not require an API or an internet connection.
+A Flutter app for browsing and managing demo posts from JSONPlaceholder. The
+post list is fetched from `https://jsonplaceholder.typicode.com/posts`; local
+demo accounts are stored in Hive CE. Theme preferences and the current login
+session use SharedPreferences. JSONPlaceholder accepts demo writes but does not
+persist them across reloads.
 
 ## Architecture
 
@@ -11,9 +13,8 @@ Presentation screen
   -> Riverpod controller/provider
   -> Domain use case
   -> Domain repository interface
-  -> Local repository implementation
-  -> Local data source
-  -> Hive CE box
+  -> API repository
+  -> JSONPlaceholder HTTP data source
 ```
 
 ```text
@@ -41,11 +42,9 @@ lib/
 the schema version. Add new Hive fields with new field numbers and advance the
 schema version when stored data needs a migration.
 
-`PostLocalDataSource` is the only post feature layer that reads or writes a Hive
-box. `LocalPostRepository` implements the domain contract, and controllers call
-domain use cases; presentation widgets never access Hive. The repository
-contract can later have a remote or synchronized implementation without
-changing the screens or domain use cases.
+`ApiPostRepository` loads and mutates posts through JSONPlaceholder.
+Controllers call domain use cases; presentation widgets never make HTTP
+requests directly.
 
 Post IDs are assigned locally and unique within the posts box. Missing records
 produce a `PostNotFoundException`. Create, read, update, and delete changes are
